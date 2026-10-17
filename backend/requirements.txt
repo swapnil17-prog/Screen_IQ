@@ -1,0 +1,31 @@
+# Core runtime dependencies (no ML / torch — see requirements-ml.txt)
+
+# Web framework
+fastapi==0.118.0
+uvicorn[standard]==0.37.0
+python-multipart==0.0.20
+
+# Database
+sqlalchemy[asyncio]==2.0.43
+asyncpg==0.31.0
+alembic==1.16.5
+pgvector==0.4.1
+
+# Settings & validation
+pydantic==2.12.5
+pydantic-settings==2.11.0
+email-validator==2.3.0
+
+# Auth
+PyJWT==2.10.1
+bcrypt==5.0.0
+
+# LLM
+anthropic==0.111.0
+
+# Hosted embeddings (OpenAI provider) — plain HTTP, no SDK needed
+httpx==0.28.1
+
+# File parsing
+pdfplumber==0.11.7
+python-docx==1.2.0

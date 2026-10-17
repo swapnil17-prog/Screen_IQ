@@ -1,0 +1,274 @@
+@import "tailwindcss";
+
+/* ── Design tokens ─────────────────────────────────────────────────────────
+   Components use semantic roles (bg-surface, text-fg-muted, border-line…);
+   light/dark values swap here only. Theme = data-theme on <html>
+   ("light" | "dark"); absent → follows the OS. */
+
+:root {
+  color-scheme: light;
+  --page: #f6f6f2;
+  --surface: #ffffff;
+  --surface-2: #fafaf8;
+  --surface-3: #f0f0eb;
+  --line: rgba(20, 20, 16, 0.09);
+  --line-strong: rgba(20, 20, 16, 0.16);
+  --fg: #141413;
+  --fg-2: #56554f;
+  --fg-3: #8a8982;
+  --brand: #3d3fbd;
+  --brand-hover: #3234a6;
+  --brand-fg: #ffffff;
+  --brand-soft: #ececfb;
+  --brand-text: #3134ad;
+  --ring: rgba(61, 63, 189, 0.3);
+  --ink: #18181b;
+  --ink-fg: #f4f4f2;
+
+  /* Triage tiers: strong match / needs review / low fit */
+  --tier-strong: #3d3fbd;
+  --tier-review: #a4a5ef;
+  --tier-low: #de8434;
+  --tier-low-soft: #fcefe3;
+  --tier-low-text: #9f4f0b;
+
+  /* Status (never used as series colors) + readable text variants */
+  --good: #0ca30c;
+  --good-text: #006300;
+  --good-soft: #e9f7e9;
+  --warn: #fab219;
+  --warn-text: #8a5a00;
+  --warn-soft: #fff6e0;
+  --serious: #ec835a;
+  --bad: #d03b3b;
+  --bad-text: #b42323;
+  --bad-soft: #fdecec;
+
+  /* Categorical series (validated order) */
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  /* Sequential blue ramp for magnitude */
+  --seq-1: #86b6ef;
+  --seq-2: #3987e5;
+  --seq-3: #256abf;
+  --track: #eeeeea;
+
+  --shadow-sm: 0 1px 2px rgba(11, 11, 11, 0.05);
+  --shadow-md: 0 4px 16px -4px rgba(11, 11, 11, 0.1), 0 2px 4px -2px rgba(11, 11, 11, 0.05);
+  --shadow-lg: 0 24px 48px -12px rgba(11, 11, 11, 0.22);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #161615;
+    --surface-2: #1b1b1a;
+    --surface-3: #232322;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.15);
+    --fg: #ffffff;
+    --fg-2: #c3c2b7;
+    --fg-3: #898781;
+    --brand: #5b5ef0;
+    --brand-hover: #7174f5;
+    --brand-fg: #ffffff;
+    --brand-soft: rgba(99, 102, 241, 0.16);
+    --brand-text: #aab0fd;
+    --ring: rgba(129, 140, 248, 0.45);
+    --ink: #202024;
+    --ink-fg: #f4f4f2;
+    --tier-strong: #8184f7;
+    --tier-review: #5557ad;
+    --tier-low: #c66d27;
+    --tier-low-soft: rgba(222, 132, 52, 0.15);
+    --tier-low-text: #f0a765;
+    --good-text: #3fcf3f;
+    --good-soft: rgba(12, 163, 12, 0.14);
+    --warn-text: #fab219;
+    --warn-soft: rgba(250, 178, 25, 0.12);
+    --bad-text: #f07b7b;
+    --bad-soft: rgba(208, 59, 59, 0.16);
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+    --seq-1: #1c5cab;
+    --seq-2: #3987e5;
+    --seq-3: #86b6ef;
+    --track: #2c2c2a;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+    --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #161615;
+  --surface-2: #1b1b1a;
+  --surface-3: #232322;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.15);
+  --fg: #ffffff;
+  --fg-2: #c3c2b7;
+  --fg-3: #898781;
+  --brand: #5b5ef0;
+  --brand-hover: #7174f5;
+  --brand-fg: #ffffff;
+  --brand-soft: rgba(99, 102, 241, 0.16);
+  --brand-text: #aab0fd;
+  --ring: rgba(129, 140, 248, 0.45);
+  --ink: #202024;
+  --ink-fg: #f4f4f2;
+  --tier-strong: #8184f7;
+  --tier-review: #5557ad;
+  --tier-low: #c66d27;
+  --tier-low-soft: rgba(222, 132, 52, 0.15);
+  --tier-low-text: #f0a765;
+  --good-text: #3fcf3f;
+  --good-soft: rgba(12, 163, 12, 0.14);
+  --warn-text: #fab219;
+  --warn-soft: rgba(250, 178, 25, 0.12);
+  --bad-text: #f07b7b;
+  --bad-soft: rgba(208, 59, 59, 0.16);
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+  --seq-1: #1c5cab;
+  --seq-2: #3987e5;
+  --seq-3: #86b6ef;
+  --track: #2c2c2a;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 16px -4px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 24px 48px -12px rgba(0, 0, 0, 0.7);
+}
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: "Instrument Serif", ui-serif, Georgia, serif;
+
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-fg: var(--brand-fg);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-text: var(--brand-text);
+  --color-good: var(--good);
+  --color-good-text: var(--good-text);
+  --color-good-soft: var(--good-soft);
+  --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
+  --color-warn-soft: var(--warn-soft);
+  --color-serious: var(--serious);
+  --color-bad: var(--bad);
+  --color-bad-text: var(--bad-text);
+  --color-bad-soft: var(--bad-soft);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-s3: var(--s3);
+  --color-s4: var(--s4);
+  --color-seq-1: var(--seq-1);
+  --color-seq-2: var(--seq-2);
+  --color-seq-3: var(--seq-3);
+  --color-track: var(--track);
+  --color-ink: var(--ink);
+  --color-ink-fg: var(--ink-fg);
+  --color-tier-strong: var(--tier-strong);
+  --color-tier-review: var(--tier-review);
+  --color-tier-low: var(--tier-low);
+  --color-tier-low-soft: var(--tier-low-soft);
+  --color-tier-low-text: var(--tier-low-text);
+
+  --shadow-card: var(--shadow-sm);
+  --shadow-pop: var(--shadow-md);
+  --shadow-modal: var(--shadow-lg);
+
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-pop-in: pop-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-slide-up: slide-up 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes pop-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background: var(--brand-soft);
+    color: var(--fg);
+  }
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-strong) transparent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+  .prose-sm p + p {
+    margin-top: 0.5rem;
+  }
+}
+
+@utility no-scrollbar {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

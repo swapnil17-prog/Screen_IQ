@@ -1,0 +1,22 @@
+Priya Nair
+Backend Engineer
+priya.nair@example.com | +91 98450 11223 | Pune, India
+
+Summary
+Backend engineer with 5 years of experience building Python APIs and data services for fintech products.
+
+Experience
+Backend Engineer at Paywise | Apr 2021 - Present
+- Build REST APIs in Python with FastAPI and PostgreSQL for a payments platform handling 2M transactions a day
+- Designed idempotent webhook processing with Redis and background workers
+- Containerized services with Docker and set up CI/CD with GitHub Actions
+
+Software Engineer at Ledgerly | Jul 2019 - Mar 2021
+- Built Django services and SQL reporting for accounting customers
+- Wrote unit tests with Pytest and improved coverage from 40% to 85%
+
+Skills
+Python, FastAPI, Django, PostgreSQL, Redis, Docker, REST APIs, Pytest, CI/CD, Git
+
+Education
+B.Tech Computer Science, College of Engineering Pune, 2019

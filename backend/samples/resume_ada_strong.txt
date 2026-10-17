@@ -1,0 +1,29 @@
+Ada Okafor
+Senior Software Engineer
+ada.okafor@example.com | +1 415 555 0142 | San Francisco, CA
+linkedin.com/in/ada-okafor-example
+
+Summary
+Backend engineer with 8 years of experience building high-throughput Python services and data platforms. Led migrations to Kubernetes and cut infrastructure costs by 35%.
+
+Experience
+Senior Software Engineer at Streamline Analytics | Mar 2021 - Present
+- Designed and operate 14 Python microservices (FastAPI) on AWS EKS serving 40M requests/day
+- Redesigned the PostgreSQL schema and indexing strategy, reducing p95 query latency from 900ms to 120ms
+- Built an event-driven ingestion pipeline on Apache Kafka processing 2B events per month
+- Introduced Terraform for all infrastructure; mentor four engineers and run design reviews
+- Shipped a retrieval-augmented generation (RAG) feature using pgvector and LLM APIs
+
+Software Engineer at Brightpath Health | Jun 2017 - Feb 2021
+- Built REST APIs in Django and PostgreSQL for a patient scheduling product used by 300 clinics
+- Containerized services with Docker and set up CI/CD with GitHub Actions
+- Led the move from a monolith to microservices, improving deploy frequency from weekly to daily
+
+Junior Developer at Northwind Labs | Jul 2016 - May 2017
+- Wrote internal tools in Python and JavaScript
+
+Skills
+Python, FastAPI, Django, PostgreSQL, Redis, Docker, Kubernetes, AWS, Terraform, Kafka, REST APIs, Microservices, pgvector, CI/CD, System Design
+
+Education
+B.S. Computer Science, University of Lagos, 2016

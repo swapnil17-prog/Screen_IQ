@@ -1,0 +1,20 @@
+import { cn } from '@/lib/utils'
+
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" className={cn('size-7', className)} aria-hidden>
+      <rect width="32" height="32" rx="8" fill="var(--brand)" />
+      <path d="M9 20.5c1.4 1.3 3.3 2 5.3 2 2.6 0 4.2-1.2 4.2-3 0-4.2-9-2.4-9-7.6C9.5 9.6 11.6 8 14.7 8c1.8 0 3.4.5 4.6 1.4" fill="none" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
+      <circle cx="22.5" cy="21.5" r="2.6" fill="#fff" />
+    </svg>
+  )
+}
+
+export function Logo({ className }: { className?: string }) {
+  return (
+    <span className={cn('inline-flex items-center gap-2', className)}>
+      <LogoMark />
+      <span className="text-[15px] font-semibold tracking-[-0.02em] text-fg">ScreenIQ</span>
+    </span>
+  )
+}

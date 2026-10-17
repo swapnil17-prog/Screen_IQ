@@ -1,0 +1,22 @@
+Mei Lin
+Senior Data Engineer
+mei.lin@example.com | +1 206 555 0187 | Seattle, WA
+
+Summary
+Data engineer with 7 years of experience building streaming and batch pipelines in Python on AWS.
+
+Experience
+Senior Data Engineer at Streamlane | Jan 2021 - Present
+- Built event-driven pipelines on Apache Kafka and Apache Spark processing 5B events a month
+- Own a FastAPI metadata service backed by PostgreSQL; led the move to Kubernetes on AWS
+- Introduced dbt and Apache Airflow for batch transformations; mentor three engineers
+
+Data Engineer at Northbeam | Jun 2018 - Dec 2020
+- Built ETL pipelines in Python and SQL feeding Snowflake and Redshift
+- Deployed services with Docker and Terraform
+
+Skills
+Python, Apache Kafka, Apache Spark, Apache Airflow, dbt, PostgreSQL, AWS, Kubernetes, Docker, Terraform, FastAPI, SQL, Snowflake
+
+Education
+M.S. Computer Science, University of Washington, 2018

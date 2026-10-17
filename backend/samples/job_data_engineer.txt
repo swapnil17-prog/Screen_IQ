@@ -1,0 +1,22 @@
+Data Engineer
+
+About the role
+Join our data platform team to build the pipelines that power analytics and machine learning across the company.
+
+What you'll do:
+- Build and operate streaming pipelines with Kafka and Spark
+- Design batch transformations and data models in SQL
+- Own data quality, observability and on-call for the platform
+- Partner with analysts and ML engineers on new datasets
+
+Requirements:
+- 3+ years of data engineering experience
+- Python and SQL
+- Apache Kafka
+- Apache Spark
+- AWS
+
+Nice to have:
+- Apache Airflow
+- dbt
+- Snowflake

@@ -1,0 +1,22 @@
+Ben Carter
+Full Stack Developer
+ben.carter@example.com | (312) 555-0199 | Chicago, IL
+
+Summary
+Full stack developer with 4 years of experience shipping web applications with Node.js and React. Comfortable with SQL databases and cloud deployment.
+
+Experience
+Full Stack Developer at Loopwise | Jan 2022 - Present
+- Build customer-facing features with React, TypeScript and Node.js (Express)
+- Maintain MySQL databases and write reporting queries
+- Deploy services with Docker on Google Cloud Run
+
+Web Developer at Pixel & Co | Aug 2020 - Dec 2021
+- Built marketing sites and a Flask API in Python for a booking system
+- Integrated Stripe payments and REST APIs
+
+Skills
+JavaScript, TypeScript, React, Node.js, Express, MySQL, Python, Flask, Docker, Google Cloud, Git
+
+Education
+B.A. Information Systems, DePaul University, 2020
