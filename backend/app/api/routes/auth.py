@@ -1,6 +1,6 @@
 import re
 import secrets
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy import select
@@ -15,15 +15,18 @@ from app.models.organization import Organization
 from app.models.user import User
 from app.schemas.api import (
     ChangePasswordRequest,
+    ForgotPasswordRequest,
+    InvitationOut,
     LoginRequest,
     MeOut,
     OrganizationOut,
     RegisterRequest,
     SessionOut,
+    TokenPasswordRequest,
     UserOut,
 )
 from app.schemas.organization import OrganizationSettings
-from app.services import audit
+from app.services import accounts, audit, tasks
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 limit_auth = Depends(RateLimiter(settings.rate_limit_auth_per_minute, scope="auth"))
@@ -128,3 +131,52 @@ async def change_password(body: ChangePasswordRequest, auth: Auth, request: Requ
                  entity_type="user", entity_id=user.id, ip_address=client_ip(request))
     await db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/forgot-password", status_code=status.HTTP_204_NO_CONTENT, dependencies=[limit_auth])
+async def forgot_password(body: ForgotPasswordRequest, request: Request, db: DB) -> Response:
+    """Email a reset link. Responds the same whether or not the account exists."""
+    user = await db.scalar(select(User).where(User.email == body.email.lower()))
+    if user is not None and user.is_active:
+        token = await accounts.issue_token(db, user, accounts.PASSWORD_RESET,
+                                           timedelta(minutes=settings.password_reset_ttl_minutes))
+        audit.record(db, organization_id=user.organization_id, actor_user_id=user.id,
+                     action="user.password_reset_requested", entity_type="user", entity_id=user.id,
+                     ip_address=client_ip(request))
+        await db.commit()
+        tasks.spawn(accounts.send_password_reset(email=user.email, full_name=user.full_name, token=token),
+                    name=f"password-reset-{user.id}")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/reset-password", status_code=status.HTTP_204_NO_CONTENT, dependencies=[limit_auth])
+async def reset_password(body: TokenPasswordRequest, request: Request, db: DB) -> Response:
+    _, user = await accounts.find_token(db, body.token, accounts.PASSWORD_RESET, lock=True)
+    user.password_hash = hash_password(body.password)
+    await accounts.consume_tokens(db, user)
+    audit.record(db, organization_id=user.organization_id, actor_user_id=user.id, action="user.password_reset",
+                 entity_type="user", entity_id=user.id, ip_address=client_ip(request))
+    await db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get("/invitations/{token}", response_model=InvitationOut, dependencies=[limit_auth])
+async def get_invitation(token: str, db: DB) -> InvitationOut:
+    _, user = await accounts.find_token(db, token, accounts.INVITE)
+    org = await db.get(Organization, user.organization_id)
+    return InvitationOut(email=user.email, full_name=user.full_name, organization_name=org.name if org else "")
+
+
+@router.post("/accept-invite", response_model=SessionOut, dependencies=[limit_auth])
+async def accept_invite(body: TokenPasswordRequest, request: Request, response: Response, db: DB) -> SessionOut:
+    """Set a password from the emailed invitation and sign straight in."""
+    _, user = await accounts.find_token(db, body.token, accounts.INVITE, lock=True)
+    user.password_hash = hash_password(body.password)
+    user.last_login_at = datetime.now(UTC)
+    await accounts.consume_tokens(db, user)
+    audit.record(db, organization_id=user.organization_id, actor_user_id=user.id, action="user.invite_accepted",
+                 entity_type="user", entity_id=user.id, ip_address=client_ip(request))
+    await db.commit()
+    await db.refresh(user)
+    org = await db.get(Organization, user.organization_id)
+    return _session(response, user, org)  # type: ignore[arg-type]

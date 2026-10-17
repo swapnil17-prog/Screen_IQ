@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Generic, Literal, TypeVar
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, computed_field, field_validator
 
 from app.core.security import MAX_PASSWORD_BYTES
 from app.schemas.evaluation import BiasAudit, FinalComponent, InterviewRubricLLM
@@ -72,7 +72,13 @@ class UserOut(ORM):
     role: Role
     is_active: bool
     last_login_at: datetime | None
+    invited_at: datetime | None = None
     created_at: datetime
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def invite_pending(self) -> bool:
+        return self.invited_at is not None and self.last_login_at is None
 
 
 class OrganizationOut(ORM):
@@ -104,9 +110,41 @@ class InviteUserRequest(BaseModel):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=120)
     role: Literal["admin", "recruiter", "viewer"] = "recruiter"
-    temporary_password: str
+    # Omit to email them an invitation link (they choose their own password).
+    # Set it to create the account directly and share the password yourself.
+    temporary_password: str | None = None
 
-    _pw = field_validator("temporary_password")(_password)
+    @field_validator("temporary_password")
+    @classmethod
+    def _temp_pw(cls, v: str | None) -> str | None:
+        return None if v is None else _password(v)
+
+
+class InviteUserResult(BaseModel):
+    user: UserOut
+    # Shown to the admin so they can share it manually if email isn't set up or fails
+    invite_link: str | None = None
+    invite_emailed: bool = False
+    email_error: str | None = None
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class TokenPasswordRequest(BaseModel):
+    """Reset a password or accept an invitation with the emailed token."""
+
+    token: str = Field(min_length=20, max_length=200)
+    password: str
+
+    _pw = field_validator("password")(_password)
+
+
+class InvitationOut(BaseModel):
+    email: str
+    full_name: str
+    organization_name: str
 
 
 class UpdateUserRequest(BaseModel):
@@ -232,6 +270,7 @@ class ApplicationSummary(BaseModel):
     total_years: float | None = None
     flags: list[str] = Field(default_factory=list)
     interview_status: str | None = None
+    source: Literal["upload", "careers"] = "upload"
     created_at: datetime
     updated_at: datetime
 
@@ -531,3 +570,30 @@ class MetaOut(BaseModel):
     allow_public_signup: bool
     max_upload_mb: int
     max_files_per_upload: int
+
+
+# ── Careers page (public) ────────────────────────────────────────────────────
+
+
+class CareerJob(BaseModel):
+    id: uuid.UUID
+    title: str
+    department: str | None
+    location: str | None
+    employment_type: str | None
+    created_at: datetime
+
+
+class CareersOut(BaseModel):
+    organization_name: str
+    slug: str
+    jobs: list[CareerJob]
+
+
+class CareerJobDetail(CareerJob):
+    organization_name: str
+    description: str
+
+
+class ApplyResult(BaseModel):
+    status: Literal["received"] = "received"

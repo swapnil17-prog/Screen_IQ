@@ -9,6 +9,7 @@ isolation, RBAC and right-to-erasure.
 
 import os
 import uuid
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import pytest
@@ -230,7 +231,8 @@ async def test_tenant_isolation_and_rbac(client):
         "email": f"viewer-{uuid.uuid4().hex[:6]}@example.com", "full_name": "Val Viewer", "role": "viewer",
         "temporary_password": "Temp0rary!pw"})
     assert invite.status_code == 201
-    login = await client.post(f"{API}/auth/login", json={"email": invite.json()["email"], "password": "Temp0rary!pw"})
+    login = await client.post(f"{API}/auth/login", json={"email": invite.json()["user"]["email"],
+                                                    "password": "Temp0rary!pw"})
     vh = {"Authorization": f"Bearer {login.json()['access_token']}"}
     assert (await client.get(f"{API}/jobs", headers=vh)).status_code == 200
     denied = await client.post(f"{API}/jobs", headers=vh, json={"title": "X", "description": "y" * 60})
@@ -336,12 +338,12 @@ async def test_shortlist_emails_interview_invitation(client, monkeypatch):
     actions = [a["action"] for a in (await client.get(f"{API}/audit-logs", headers=h)).json()["items"]]
     assert "interview.invite_sent" in actions
 
-    # Shortlisting again before the candidate starts re-sends with a fresh link; the old one stops working
+    # Shortlisting again before the candidate starts re-sends the same, still-working link
     await client.patch(f"{API}/applications/{ada['id']}", headers=h, json={"stage": "new"})
     await client.patch(f"{API}/applications/{ada['id']}", headers=h, json={"stage": "shortlisted"})
     await tasks.wait_all()
-    assert len(sent) == 2
-    assert (await client.get(f"{API}/public/interviews/{token}")).status_code == 404
+    assert len(sent) == 2 and f"/interview/{token}" in sent[1]["text"]
+    assert (await client.get(f"{API}/public/interviews/{token}")).status_code == 200
 
     # Workspaces can turn the automation off
     org = owner["session"]["organization"]
@@ -359,3 +361,179 @@ async def test_criteria_validation(client):
     bad = await client.patch(f"{API}/jobs/{job['id']}", headers=owner["headers"],
                              json={"criteria": {"required_skills": ["Python"], "min_years_experience": 99}})
     assert bad.status_code == 422
+
+
+@pytest.fixture
+def outbox(monkeypatch) -> list[dict]:
+    """Capture every outgoing email instead of sending it."""
+    sent: list[dict] = []
+
+    async def fake_send(**kwargs) -> str:
+        sent.append(kwargs)
+        return "smtp"
+
+    monkeypatch.setattr("app.services.email.send_email", fake_send)
+    return sent
+
+
+async def _finish_interview(client, token: str) -> None:
+    await client.post(f"{API}/public/interviews/{token}/start", json={"consent": True})
+    answer = ("At my last company I redesigned our PostgreSQL indexing strategy because p95 latency was 900ms. "
+              "I measured the slow queries, chose partial indexes and a read replica, and cut p95 to 120ms with "
+              "35% lower cost. The trade-off was write overhead, which we monitored with dashboards.")
+    for i in range(14):
+        r = (await client.post(f"{API}/public/interviews/{token}/messages", json={"message": f"{answer} ({i})"})).json()
+        if r["completed"]:
+            return
+    raise AssertionError("interview did not complete")
+
+
+async def test_careers_page_and_apply(client, outbox):
+    owner = await register(client, org="Careers Co")
+    h = owner["headers"]
+    slug = owner["session"]["organization"]["slug"]
+    job = await create_ready_job(client, h)
+
+    page = (await client.get(f"{API}/public/careers/{slug}")).json()
+    assert page["organization_name"] == "Careers Co" and [j["id"] for j in page["jobs"]] == [job["id"]]
+    detail = (await client.get(f"{API}/public/careers/{slug}/jobs/{job['id']}")).json()
+    assert detail["description"].startswith(read_sample("job_senior_backend.txt")[:40])
+
+    def form(**over):
+        data = {"full_name": "Mei Applicant", "email": "Mei.Applicant@Example.com", "consent": "true", **over}
+        files = {"resume": ("mei.txt", read_sample("resume_mei_strong.txt").encode(), "text/plain")}
+        return {"data": data, "files": files}
+
+    url = f"{API}/public/careers/{slug}/jobs/{job['id']}/apply"
+    assert (await client.post(url, **form(consent="false"))).status_code == 422
+    assert (await client.post(url, **form(email="not-an-email"))).status_code == 422
+    assert (await client.post(url, **form(website="http://spam.example"))).status_code == 201  # honeypot
+    assert (await client.get(f"{API}/jobs/{job['id']}/applications", headers=h)).json() == []
+
+    r = await client.post(url, **form())
+    assert r.status_code == 201, r.text
+    await tasks.wait_all()
+    apps = (await client.get(f"{API}/jobs/{job['id']}/applications", headers=h)).json()
+    assert len(apps) == 1 and apps[0]["source"] == "careers" and apps[0]["status"] == "completed"
+    # The applicant's own details win over the parsed resume
+    assert apps[0]["candidate"]["full_name"] == "Mei Applicant"
+    assert apps[0]["candidate"]["email"] == "mei.applicant@example.com"
+    assert [m["to"] for m in outbox] == ["mei.applicant@example.com"]
+    assert "received your application" in outbox[0]["subject"]
+
+    # Applying twice is accepted silently but creates nothing new
+    assert (await client.post(url, **form())).status_code == 201
+    await tasks.wait_all()
+    assert len((await client.get(f"{API}/jobs/{job['id']}/applications", headers=h)).json()) == 1
+
+    # Closed jobs and disabled careers pages aren't reachable
+    await client.patch(f"{API}/jobs/{job['id']}", headers=h, json={"status": "closed"})
+    assert (await client.get(f"{API}/public/careers/{slug}/jobs/{job['id']}")).status_code == 404
+    org = owner["session"]["organization"]
+    await client.patch(f"{API}/organization", headers=h,
+                       json={"settings": {**org["settings"], "careers_page_enabled": False}})
+    assert (await client.get(f"{API}/public/careers/{slug}")).status_code == 404
+
+
+async def test_rejection_reminder_and_completion_emails(client, outbox, monkeypatch):
+    from app.core.config import settings
+    from app.models import InterviewSession
+    from app.services.notifications import send_due_rejections, send_due_reminders
+
+    owner = await register(client, org="Notify Co")
+    h = owner["headers"]
+    slug = owner["session"]["organization"]["slug"]
+    job = await create_ready_job(client, h)
+    await upload(client, h, job["id"], ["resume_ada_strong.txt", "resume_ben_partial.txt"])
+    await client.post(f"{API}/public/careers/{slug}/jobs/{job['id']}/apply", data={
+        "full_name": "Chloe Martin", "email": "chloe.applies@example.com", "consent": "true"},
+        files={"resume": ("chloe.txt", read_sample("resume_chloe_weak.txt").encode(), "text/plain")})
+    await tasks.wait_all()
+    apps = {a["candidate"]["full_name"]: a for a in
+            (await client.get(f"{API}/jobs/{job['id']}/applications", headers=h)).json()}
+    outbox.clear()
+
+    # ── Rejections: only after the grace period, only to applicants / interviewees, never twice ──
+    for name in ("Chloe Martin", "Ben Carter"):
+        await client.patch(f"{API}/applications/{apps[name]['id']}", headers=h, json={"stage": "rejected"})
+    assert await send_due_rejections() == 0  # still inside the undo window
+    monkeypatch.setattr(settings, "rejection_email_delay_minutes", 0)
+    assert await send_due_rejections() == 1
+    assert [m["to"] for m in outbox] == ["chloe.applies@example.com"]  # Ben was sourced, never contacted
+    assert "Your application for" in outbox[0]["subject"]
+    await client.patch(f"{API}/applications/{apps['Chloe Martin']['id']}", headers=h, json={"stage": "new"})
+    await client.patch(f"{API}/applications/{apps['Chloe Martin']['id']}", headers=h, json={"stage": "rejected"})
+    assert await send_due_rejections() == 0
+    outbox.clear()
+
+    # ── Shortlist invite, then an expiry reminder repeating the same link ──
+    ada = apps["Ada Okafor"]
+    await client.patch(f"{API}/applications/{ada['id']}", headers=h, json={"stage": "shortlisted"})
+    await tasks.wait_all()
+    token = outbox[0]["text"].split("/interview/")[1].split()[0]
+    assert await send_due_reminders() == 0  # not close to expiry yet
+    async with SessionLocal() as db:
+        session = await db.scalar(select(InterviewSession)
+                                  .where(InterviewSession.application_id == uuid.UUID(ada["id"])))
+        session.created_at = datetime.now(UTC) - timedelta(days=12)
+        session.expires_at = datetime.now(UTC) + timedelta(hours=20)
+        await db.commit()
+    assert await send_due_reminders() == 1
+    assert await send_due_reminders() == 0
+    assert "Reminder" in outbox[1]["subject"] and f"/interview/{token}" in outbox[1]["text"]
+    outbox.clear()
+
+    # ── Recruiter alert once the finished interview is evaluated ──
+    await _finish_interview(client, token)
+    await tasks.wait_all()
+    alerts = [m for m in outbox if "completed their AI interview" in m["subject"]]
+    assert [m["to"] for m in alerts] == [owner["email"]]
+    assert "final score" in alerts[0]["text"]
+    await client.post(f"{API}/applications/{ada['id']}/evaluation", headers=h)  # a re-run doesn't re-alert
+    await tasks.wait_all()
+    assert len([m for m in outbox if "completed their AI interview" in m["subject"]]) == 1
+
+
+async def test_password_reset_and_email_invites(client, outbox):
+    owner = await register(client, org="Accounts Co")
+
+    assert (await client.post(f"{API}/auth/forgot-password", json={"email": "nobody@example.com"})).status_code == 204
+    assert (await client.post(f"{API}/auth/forgot-password", json={"email": owner["email"]})).status_code == 204
+    await tasks.wait_all()
+    assert [m["to"] for m in outbox] == [owner["email"]]
+    token = outbox[0]["text"].split("token=")[1].split()[0]
+
+    weak = await client.post(f"{API}/auth/reset-password", json={"token": token, "password": "short"})
+    assert weak.status_code == 422
+    ok = await client.post(f"{API}/auth/reset-password", json={"token": token, "password": "N3w-passw0rd"})
+    assert ok.status_code == 204
+    again = await client.post(f"{API}/auth/reset-password", json={"token": token, "password": "An0ther-pass"})
+    assert again.status_code == 422  # single use
+    login = await client.post(f"{API}/auth/login", json={"email": owner["email"], "password": "N3w-passw0rd"})
+    assert login.status_code == 200
+    h = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    outbox.clear()
+
+    # Email invitation: no password from the admin; the teammate picks their own
+    email = f"rita-{uuid.uuid4().hex[:6]}@example.com"
+    r = await client.post(f"{API}/users", headers=h, json={"email": email, "full_name": "Rita Recruiter",
+                                                           "role": "recruiter"})
+    assert r.status_code == 201, r.text
+    result = r.json()
+    assert result["user"]["invite_pending"] is True and result["invite_emailed"] is True
+    assert [m["to"] for m in outbox] == [email] and "invited you to join Accounts Co" in outbox[0]["subject"]
+    first = result["invite_link"].split("token=")[1]
+
+    resent = (await client.post(f"{API}/users/{result['user']['id']}/resend-invite", headers=h)).json()
+    second = resent["invite_link"].split("token=")[1]
+    assert (await client.get(f"{API}/auth/invitations/{first}")).status_code == 422  # superseded
+    preview = (await client.get(f"{API}/auth/invitations/{second}")).json()
+    assert preview == {"email": email, "full_name": "Rita Recruiter", "organization_name": "Accounts Co"}
+
+    client.cookies.clear()
+    accepted = await client.post(f"{API}/auth/accept-invite", json={"token": second, "password": "Rita-pass1"})
+    assert accepted.status_code == 200 and accepted.json()["user"]["role"] == "recruiter"
+    client.cookies.clear()
+    users = (await client.get(f"{API}/users", headers=h)).json()
+    assert next(u for u in users if u["email"] == email)["invite_pending"] is False
+    assert (await client.post(f"{API}/users/{result['user']['id']}/resend-invite", headers=h)).status_code == 422

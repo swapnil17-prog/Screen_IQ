@@ -128,7 +128,8 @@ export function ApplicationPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const { can } = useAuth()
-  const autoInvite = useSession().organization.settings.auto_invite_on_shortlist
+  const orgSettings = useSession().organization.settings
+  const autoInvite = orgSettings.auto_invite_on_shortlist
   const [tab, setTab] = useState<Tab>('overview')
   const [whyOpen, setWhyOpen] = useState(false)
 
@@ -158,6 +159,10 @@ export function ApplicationPage() {
     onSuccess: (a) => {
       qc.setQueryData(['application', applicationId], a)
       qc.invalidateQueries({ queryKey: ['applications', a.job_id] })
+      if (a.stage === 'rejected' && orgSettings.email_rejections && a.candidate.email && (a.source === 'careers' || a.interview)) {
+        toast.success('Candidate rejected', `A polite rejection email will go to ${a.candidate.email} in 10 minutes. Undo before then to cancel it.`)
+        return
+      }
       if (a.stage === 'shortlisted' && autoInvite) {
         if (a.candidate.email) toast.success('Added to shortlist', `An AI interview invitation is being emailed to ${a.candidate.email}.`)
         else toast.success('Added to shortlist', 'No email address on this resume, so no invitation was sent. Generate the interview and share the link yourself.')
@@ -217,6 +222,7 @@ export function ApplicationPage() {
             <h1 className="text-[28px] font-semibold tracking-[-0.025em] text-fg">{c.full_name ?? (processing ? 'Processing resume…' : 'Unnamed candidate')}</h1>
             <p className="mt-0.5 text-[15px] text-fg-2">
               {meta.join(' · ') || c.email}
+              {app.source === 'careers' && <>{' · '}<span className="font-medium text-brand-text">Applied via careers page</span></>}
               {' · '}<Link to={`/app/candidates/${c.id}`} className="text-brand-text hover:underline">Profile</Link>
             </p>
           </div>

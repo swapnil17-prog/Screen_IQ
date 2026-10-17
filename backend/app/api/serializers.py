@@ -72,6 +72,7 @@ def application_summary(
         total_years=exp.get("total_years"),
         flags=s.get("flags", []),
         interview_status=interview_status,
+        source=app.source,
         created_at=app.created_at,
         updated_at=app.updated_at,
     )

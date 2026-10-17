@@ -7,10 +7,11 @@ probing follow-up and phrases the transitions. Question text is appended by
 code, so the interview always follows the plan exactly.
 """
 
+import uuid
 from datetime import UTC, datetime, timedelta
 
 from app.core.config import settings
-from app.core.security import generate_link_token, hash_token
+from app.core.security import derive_link_token, hash_token
 from app.llm.client import get_llm
 from app.models.application import Application
 from app.models.candidate import Candidate
@@ -138,8 +139,17 @@ def interview_link(token: str) -> str:
     return f"{settings.frontend_url.rstrip('/')}/interview/{token}"
 
 
+def current_link(session: InterviewSession) -> str | None:
+    """The candidate's live link, or None for legacy random tokens (or after a SECRET_KEY change)."""
+    if session.link_version is None:
+        return None
+    token = derive_link_token(session.id, session.link_version)
+    return interview_link(token) if hash_token(token) == session.token_hash else None
+
+
 async def open_session(*, app: Application, candidate: Candidate, job: Job, org_name: str,
-                       org_settings: OrganizationSettings) -> tuple[InterviewSession, str]:
+                       org_settings: OrganizationSettings,
+                       created_by_id: uuid.UUID | None = None) -> tuple[InterviewSession, str]:
     """Design the interview and build its (unsaved) session. Returns the session and its one-time link token."""
     plan = await generate_plan(
         job_title=job.title,
@@ -149,11 +159,15 @@ async def open_session(*, app: Application, candidate: Candidate, job: Job, org_
         question_count=org_settings.interview_question_count,
         max_follow_ups=org_settings.interview_max_follow_ups,
     )
-    token = generate_link_token()
+    session_id = uuid.uuid4()
+    token = derive_link_token(session_id, 1)
     first_name = (candidate.full_name or "").split(" ")[0] or None
     session = InterviewSession(
+        id=session_id,
         organization_id=app.organization_id,
         application_id=app.id,
+        created_by_id=created_by_id,
+        link_version=1,
         token_hash=hash_token(token),
         status="pending",
         plan=plan.model_dump(),
@@ -165,9 +179,11 @@ async def open_session(*, app: Application, candidate: Candidate, job: Job, org_
 
 def rotate_link(session: InterviewSession) -> str:
     """Issue a fresh link token (the old link stops working) and extend the expiry."""
-    token = generate_link_token()
+    session.link_version = (session.link_version or 0) + 1
+    token = derive_link_token(session.id, session.link_version)
     session.token_hash = hash_token(token)
     session.expires_at = datetime.now(UTC) + timedelta(days=settings.interview_link_ttl_days)
+    session.reminder_sent_at = None  # the new expiry deserves its own reminder
     if session.status == "expired":
         session.status = "in_progress" if session.started_at else "pending"
     return token

@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Cpu, History, KeyRound, SlidersHorizontal, UserPlus, Users } from 'lucide-react'
+import { Building2, Cpu, History, KeyRound, Send, SlidersHorizontal, UserPlus, Users } from 'lucide-react'
 import { api } from '@/lib/api'
-import type { OrganizationSettings } from '@/lib/types'
+import type { InviteUserResult, OrganizationSettings } from '@/lib/types'
 import { ACTION_LABELS, dateTime, timeAgo, titleCase } from '@/lib/format'
 import { errorMessage } from '@/lib/utils'
 import { useAuth, useSession } from '@/hooks/useAuth'
@@ -14,6 +14,7 @@ import { Field, Input, Select } from '@/components/ui/input'
 import { Tabs } from '@/components/ui/tabs'
 import { Avatar, PageLoader, Switch } from '@/components/ui/misc'
 import { Dialog } from '@/components/ui/dialog'
+import { CopyLink, LinkBox } from '@/components/ui/copy-link'
 import { useToast } from '@/components/ui/toast'
 import { WeightsEditor } from '../jobs/WeightsEditor'
 
@@ -32,7 +33,7 @@ function useSaveOrg() {
   })
 }
 
-function Row({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
+function Row({ title, description, children }: { title: string; description: React.ReactNode; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
       <div className="max-w-lg">
@@ -53,6 +54,7 @@ function WorkspaceTab() {
   const dirty = name !== organization.name || JSON.stringify(s) !== JSON.stringify(organization.settings)
   const disabled = !can('admin')
   const total = s.final_weights.screening + s.final_weights.interview || 1
+  const careersUrl = `${window.location.origin}/careers/${organization.slug}`
 
   return (
     <Card className="max-w-3xl">
@@ -80,8 +82,20 @@ function WorkspaceTab() {
             {[0, 1, 2, 3].map((n) => <option key={n} value={n}>{n}</option>)}
           </Select>
         </Row>
+        <Row title="Careers page" description={<>Public page listing your open jobs with an apply form. Applications are screened automatically. <CopyLink url={careersUrl} /></>}>
+          <Switch label="Careers page" checked={s.careers_page_enabled} disabled={disabled} onChange={(v) => setS({ ...s, careers_page_enabled: v })} />
+        </Row>
         <Row title="Invite on shortlist" description="When a candidate is shortlisted, generate their AI interview and email them a congratulations message with their private interview link.">
           <Switch label="Invite on shortlist" checked={s.auto_invite_on_shortlist} disabled={disabled} onChange={(v) => setS({ ...s, auto_invite_on_shortlist: v })} />
+        </Row>
+        <Row title="Interview reminders" description="Remind candidates who haven’t finished their AI interview two days before the link expires.">
+          <Switch label="Interview reminders" checked={s.interview_reminders} disabled={disabled} onChange={(v) => setS({ ...s, interview_reminders: v })} />
+        </Row>
+        <Row title="Rejection emails" description="Send a polite rejection email 10 minutes after a candidate is rejected (so Undo still works). Only people who applied or were invited to interview receive one, never resumes you sourced.">
+          <Switch label="Rejection emails" checked={s.email_rejections} disabled={disabled} onChange={(v) => setS({ ...s, email_rejections: v })} />
+        </Row>
+        <Row title="Interview completed alerts" description="Email the recruiter who set up an interview when the candidate finishes it, with the AI evaluation result.">
+          <Switch label="Interview completed alerts" checked={s.notify_on_interview_complete} disabled={disabled} onChange={(v) => setS({ ...s, notify_on_interview_complete: v })} />
         </Row>
         <Row title="Final score blend" description={`Screening ${Math.round((s.final_weights.screening / total) * 100)}% · Interview ${Math.round((s.final_weights.interview / total) * 100)}%`}>
           <input type="range" min={0} max={1} step={0.05} value={s.final_weights.interview} disabled={disabled} aria-label="Interview weight"
@@ -126,18 +140,29 @@ function TeamTab() {
   const qc = useQueryClient()
   const toast = useToast()
   const [open, setOpen] = useState(false)
-  const [form, setForm] = useState({ email: '', full_name: '', role: 'recruiter', temporary_password: '' })
+  const [form, setForm] = useState({ email: '', full_name: '', role: 'recruiter' })
+  // Shown when the invitation couldn't be emailed, so the admin can share the link themselves
+  const [manual, setManual] = useState<InviteUserResult | null>(null)
   const { data: users, isLoading } = useQuery({ queryKey: ['users'], queryFn: api.users })
 
+  function invited(res: InviteUserResult) {
+    qc.invalidateQueries({ queryKey: ['users'] })
+    if (res.invite_emailed) toast.success('Invitation sent', `${res.user.full_name} will get an email to set their password.`)
+    else setManual(res)
+  }
   const invite = useMutation({
     mutationFn: () => api.inviteUser(form),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['users'] })
-      toast.success('Teammate added', 'Share the temporary password with them securely.')
+    onSuccess: (res) => {
       setOpen(false)
-      setForm({ email: '', full_name: '', role: 'recruiter', temporary_password: '' })
+      setForm({ email: '', full_name: '', role: 'recruiter' })
+      invited(res)
     },
-    onError: (e) => toast.error('Couldn’t add teammate', errorMessage(e)),
+    onError: (e) => toast.error('Couldn’t invite teammate', errorMessage(e)),
+  })
+  const resend = useMutation({
+    mutationFn: (id: string) => api.resendInvite(id),
+    onSuccess: invited,
+    onError: (e) => toast.error('Couldn’t resend invitation', errorMessage(e)),
   })
   const update = useMutation({
     mutationFn: ({ id, body }: { id: string; body: { role?: string; is_active?: boolean } }) => api.updateUser(id, body),
@@ -156,18 +181,26 @@ function TeamTab() {
       <CardHeader
         title="Team members"
         description="Owners and admins manage settings and the team; recruiters screen and interview; viewers have read-only access."
-        action={can('admin') && <Button size="sm" onClick={() => setOpen(true)}><UserPlus /> Add teammate</Button>}
+        action={can('admin') && <Button size="sm" onClick={() => setOpen(true)}><UserPlus /> Invite teammate</Button>}
       />
       <ul className="divide-y divide-line border-t border-line">
         {users?.map((u) => (
           <li key={u.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
             <Avatar name={u.full_name} size="sm" />
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 text-sm font-medium text-fg">{u.full_name}{u.id === me.id && <Badge>You</Badge>}{!u.is_active && <Badge tone="bad">Deactivated</Badge>}</div>
-              <div className="text-xs text-fg-3">{u.email} · last active {timeAgo(u.last_login_at)}</div>
+              <div className="flex items-center gap-2 text-sm font-medium text-fg">
+                {u.full_name}{u.id === me.id && <Badge>You</Badge>}{!u.is_active && <Badge tone="bad">Deactivated</Badge>}
+                {u.invite_pending && u.is_active && <Badge tone="warn">Invitation pending</Badge>}
+              </div>
+              <div className="text-xs text-fg-3">{u.email} · {u.invite_pending ? `invited ${timeAgo(u.invited_at)}` : `last active ${timeAgo(u.last_login_at)}`}</div>
             </div>
             {can('admin') && u.role !== 'owner' && u.id !== me.id ? (
               <div className="flex items-center gap-2">
+                {u.invite_pending && u.is_active && (
+                  <Button variant="ghost" size="sm" onClick={() => resend.mutate(u.id)} loading={resend.isPending && resend.variables === u.id}>
+                    <Send /> Resend
+                  </Button>
+                )}
                 <Select value={u.role} onChange={(e) => update.mutate({ id: u.id, body: { role: e.target.value } })} className="h-8 w-32 text-[13px]" aria-label={`Role for ${u.full_name}`}>
                   {['admin', 'recruiter', 'viewer'].map((r) => <option key={r} value={r}>{titleCase(r)}</option>)}
                 </Select>
@@ -182,9 +215,9 @@ function TeamTab() {
       <Dialog
         open={open}
         onClose={() => setOpen(false)}
-        title="Add a teammate"
-        description="They sign in with this email and the temporary password, then change it under Account."
-        footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" form="invite-form" loading={invite.isPending}>Add teammate</Button></>}
+        title="Invite a teammate"
+        description="We’ll email them a link to join this workspace and choose their own password. The link expires in 7 days."
+        footer={<><Button variant="secondary" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" form="invite-form" loading={invite.isPending}>Send invitation</Button></>}
       >
         <form id="invite-form" onSubmit={submit} className="space-y-4">
           <Field label="Full name">{(id) => <Input id={id} required value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} />}</Field>
@@ -194,10 +227,18 @@ function TeamTab() {
               <option value="admin">Admin</option><option value="recruiter">Recruiter</option><option value="viewer">Viewer</option>
             </Select>
           )}</Field>
-          <Field label="Temporary password" hint="8+ characters, mixing letters with numbers or symbols.">
-            {(id) => <Input id={id} type="text" required minLength={8} autoComplete="off" value={form.temporary_password} onChange={(e) => setForm({ ...form, temporary_password: e.target.value })} />}
-          </Field>
         </form>
+      </Dialog>
+      <Dialog
+        open={!!manual}
+        onClose={() => setManual(null)}
+        title={manual?.email_error ? 'The invitation email couldn’t be sent' : 'Share the invitation link'}
+        description={manual?.email_error
+          ? `${manual.email_error} Send ${manual.user.full_name} this link yourself instead.`
+          : `Email delivery isn’t set up on this server, so nothing was sent. Send ${manual?.user.full_name ?? 'them'} this link yourself: it lets them set a password and join.`}
+        footer={<Button onClick={() => setManual(null)}>Done</Button>}
+      >
+        {manual?.invite_link && <LinkBox url={manual.invite_link} title={`Invitation for ${manual.user.email} — expires in 7 days`} />}
       </Dialog>
     </Card>
   )

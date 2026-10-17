@@ -10,6 +10,7 @@ from app.models.interview import InterviewSession
 from app.models.job import Job
 from app.models.organization import Organization
 from app.models.user import User
+from app.models.user_token import UserToken
 
 __all__ = [
     "Application",
@@ -22,4 +23,5 @@ __all__ = [
     "Job",
     "Organization",
     "User",
+    "UserToken",
 ]

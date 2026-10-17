@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CircleAlert, FileText, MoreHorizontal, RefreshCw, Scale, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
+import { CircleAlert, FileText, Link2, MoreHorizontal, RefreshCw, Scale, SlidersHorizontal, Trash2, Upload } from 'lucide-react'
 import { api } from '@/lib/api'
 import type { Tier } from '@/lib/types'
 import { timeAgo, titleCase } from '@/lib/format'
 import { cn, errorMessage } from '@/lib/utils'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth, useSession } from '@/hooks/useAuth'
 import { Card, CardBody, CardHeader } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { EmptyState, PageLoader, Spinner } from '@/components/ui/misc'
@@ -35,6 +35,7 @@ export function JobDetailPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const { can } = useAuth()
+  const { organization } = useSession()
   const [view, setView] = useState<View>('candidates')
   const [tier, setTier] = useState<Tier | 'all'>('all')
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -67,6 +68,8 @@ export function JobDetailPage() {
 
   const x = job.extracted
   const closed = job.status === 'closed' || job.status === 'archived'
+  const applyUrl = organization.settings.careers_page_enabled && job.status === 'open'
+    ? `${window.location.origin}/careers/${organization.slug}/jobs/${job.id}` : null
   const c = job.counts
   const tierTabs: { key: Tier | 'all'; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: c.total },
@@ -127,6 +130,11 @@ export function JobDetailPage() {
                     <MenuItem key={s} onClick={() => { close(); setStatus.mutate(s) }}>Mark as {s}</MenuItem>
                   ))}
                   <div className="my-1 h-px bg-line" />
+                  {applyUrl && (
+                    <MenuItem icon={<Link2 />} onClick={() => { close(); navigator.clipboard.writeText(applyUrl).then(() => toast.success('Apply link copied', 'Share it anywhere: candidates apply on your careers page.')) }}>
+                      Copy apply link
+                    </MenuItem>
+                  )}
                   <MenuItem icon={<RefreshCw />} onClick={() => { close(); rescore.mutate() }}>Re-score all candidates</MenuItem>
                   {can('admin') && <MenuItem icon={<Trash2 />} danger onClick={() => { close(); setConfirmDelete(true) }}>Delete job</MenuItem>}
                 </>

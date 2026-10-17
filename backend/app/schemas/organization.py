@@ -40,5 +40,13 @@ class OrganizationSettings(BaseModel):
     interview_max_follow_ups: int = Field(1, ge=0, le=3)
     # Shortlisting a candidate generates their AI interview and emails them the link.
     auto_invite_on_shortlist: bool = True
+    # Public careers page listing open jobs with an apply form.
+    careers_page_enabled: bool = True
+    # Polite rejection email (only to people who applied or were invited to interview).
+    email_rejections: bool = True
+    # Reminder before an unfinished interview link expires.
+    interview_reminders: bool = True
+    # Email the recruiter when a candidate finishes their interview.
+    notify_on_interview_complete: bool = True
     # Score delta (0-100 scale) above which the counterfactual audit flags an evaluation
     bias_delta_threshold: float = Field(5.0, ge=1, le=30)

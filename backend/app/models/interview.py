@@ -21,6 +21,12 @@ class InterviewSession(UUIDPk, TenantScoped, Timestamps, Base):
     )
     # SHA-256 of the candidate's link token (the raw token is never stored)
     token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    # Links are HMAC-derived from (id, link_version), so reminder emails can repeat the
+    # same link without storing it. NULL = legacy random token that can't be re-derived.
+    link_version: Mapped[int | None] = mapped_column(Integer)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL")
+    )
     status: Mapped[str] = mapped_column(Text, nullable=False, default="pending")
 
     plan: Mapped[dict] = mapped_column(JSONB, nullable=False)  # InterviewPlan
@@ -32,3 +38,5 @@ class InterviewSession(UUIDPk, TenantScoped, Timestamps, Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    reminder_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completion_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -90,6 +90,18 @@ class Settings(BaseSettings):
     # Sender address; defaults to SMTP_USERNAME.
     email_from: str | None = None
 
+    # ── Notifications & account emails ───────────────────────────────────────
+    # Grace period before a rejection email goes out, so "Undo reject" still works.
+    rejection_email_delay_minutes: int = 10
+    # Remind candidates who haven't finished this many hours before their link expires.
+    interview_reminder_hours: int = 48
+    notification_sweep_seconds: int = 60
+    password_reset_ttl_minutes: int = 60
+    invite_ttl_days: int = 7
+
+    # ── Careers page ─────────────────────────────────────────────────────────
+    rate_limit_apply_per_minute: int = 5
+
     # ── Rate limiting (per client IP, in-process) ────────────────────────────
     rate_limit_auth_per_minute: int = 20
     rate_limit_public_per_minute: int = 30
