@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -31,6 +31,7 @@ import { Menu, MenuItem, MenuLabel } from '@/components/ui/menu'
 import { Button } from '@/components/ui/button'
 import { UploadDialog } from '@/features/jobs/UploadDialog'
 import { Logo } from './Logo'
+import { PageTransition } from './PageTransition'
 
 export function RequireAuth() {
   const { me, loading } = useAuth()
@@ -288,7 +289,12 @@ export function AppShell() {
           )}
         </header>
         <main className="mx-auto w-full max-w-[1320px] flex-1 px-4 py-7 sm:px-6 lg:px-8">
-          <Outlet />
+          {/* Keeps the shell on screen while a lazy page loads */}
+          <Suspense fallback={<PageLoader />}>
+            <PageTransition>
+              <Outlet />
+            </PageTransition>
+          </Suspense>
         </main>
       </div>
       <UploadDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
