@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Briefcase, MapPin, Plus, Search, Users } from 'lucide-react'
+import { Briefcase, ExternalLink, MapPin, Plus, Search, Users } from 'lucide-react'
 import { api } from '@/lib/api'
 import { score, timeAgo } from '@/lib/format'
-import { useAuth } from '@/hooks/useAuth'
+import { useAuth, useSession } from '@/hooks/useAuth'
 import { PageHeader } from '@/components/layout/AppShell'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -67,6 +67,7 @@ function JobCard({ job }: { job: JobSummary }) {
 
 export function JobsPage() {
   const { can } = useAuth()
+  const { organization } = useSession()
   const [status, setStatus] = useState<'open' | 'all'>('open')
   const [q, setQ] = useState('')
   const { data, isLoading } = useQuery({
@@ -82,7 +83,12 @@ export function JobsPage() {
       <PageHeader
         title="Jobs"
         description="Every role you're hiring for, with live screening progress."
-        actions={can('write') && <ButtonLink to="/app/jobs/new"><Plus /> New job</ButtonLink>}
+        actions={<>
+          {organization.settings.careers_page_enabled && (
+            <ButtonLink to={`/careers/${organization.slug}`} target="_blank" variant="secondary"><ExternalLink /> Careers page</ButtonLink>
+          )}
+          {can('write') && <ButtonLink to="/app/jobs/new"><Plus /> New job</ButtonLink>}
+        </>}
       />
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative sm:w-72">

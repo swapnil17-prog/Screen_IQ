@@ -17,6 +17,8 @@ class User(UUIDPk, TenantScoped, Timestamps, Base):
     role: Mapped[str] = mapped_column(Text, nullable=False, default="recruiter")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Set when added by email invitation; the invite is pending until they first sign in
+    invited_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     # Emails are globally unique so login needs no org selector.
     __table_args__ = (UniqueConstraint("email", name="uq_users_email"),)

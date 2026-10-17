@@ -33,6 +33,7 @@ from app.services.evaluation import evaluate
 from app.services.experience import analyze_experience
 from app.services.extraction import extract_job, extract_resume
 from app.services.fairness import RedactionContext, analyze_job_description
+from app.services.notifications import notify_interview_completed
 from app.services.retrieval import job_embedding_text, store_candidate_embeddings, store_job_embedding
 from app.services.screening import screen
 
@@ -107,9 +108,15 @@ async def ingest_candidate(db: AsyncSession, candidate: Candidate) -> None:
             candidate.extracted = resume.model_dump()
             candidate.experience = experience.model_dump()
             candidate.skills = resume.skills
-            candidate.full_name = resume.full_name
-            candidate.email = resume.email
-            candidate.phone = resume.phone
+            if candidate.source == "careers":
+                # The applicant typed their own contact details — those win over what the parser found
+                candidate.full_name = candidate.full_name or resume.full_name
+                candidate.email = candidate.email or resume.email
+                candidate.phone = candidate.phone or resume.phone
+            else:
+                candidate.full_name = resume.full_name
+                candidate.email = resume.email
+                candidate.phone = resume.phone
             candidate.location = resume.location
             candidate.headline = resume.headline or experience.current_title
             await store_candidate_embeddings(
@@ -204,6 +211,7 @@ async def run_evaluation(evaluation_id: uuid.UUID) -> None:
         app = await db.get(Application, ev.application_id)
         if session is None or app is None:
             return
+        session_id = session.id
         job = await db.get(Job, app.job_id)
         candidate = await db.get(Candidate, app.candidate_id)
         org = await db.get(Organization, app.organization_id)
@@ -255,6 +263,7 @@ async def run_evaluation(evaluation_id: uuid.UUID) -> None:
             if ev:
                 ev.status, ev.error = "failed", _user_error(e)
                 await db.commit()
+    await notify_interview_completed(session_id)
 
 
 # ── Stale-work recovery ──────────────────────────────────────────────────────

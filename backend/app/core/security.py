@@ -1,6 +1,8 @@
 """Password hashing, JWT access tokens and opaque candidate-link tokens."""
 
+import base64
 import hashlib
+import hmac
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -57,8 +59,20 @@ def decode_access_token(token: str) -> dict:
 
 
 def generate_link_token() -> str:
-    """Opaque, URL-safe token for candidate interview links (256 bits)."""
+    """Opaque, URL-safe token for emailed account links — password reset, invitations (256 bits)."""
     return secrets.token_urlsafe(32)
+
+
+def derive_link_token(session_id: uuid.UUID, version: int) -> str:
+    """
+    Candidate interview-link token, HMAC-derived from the session id and link version.
+
+    Only its hash is stored, yet the server can re-create the same link for reminder
+    emails. Forging one needs SECRET_KEY, which already guards every session token.
+    """
+    mac = hmac.new(settings.secret_key.encode("utf-8"), f"interview-link:{session_id}:{version}".encode(),
+                   hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(mac).rstrip(b"=").decode("ascii")
 
 
 def hash_token(token: str) -> str:

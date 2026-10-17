@@ -51,6 +51,11 @@ class Application(UUIDPk, TenantScoped, Timestamps, Base):
     recommendation: Mapped[str | None] = mapped_column(Text)
 
     notes: Mapped[str | None] = mapped_column(Text)
+    # "upload" | "careers"
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="upload", server_default="upload")
+    # Set while the stage is "rejected"; the rejection email goes out after a grace period
+    rejected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    rejection_notified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     __table_args__ = (
         UniqueConstraint("job_id", "candidate_id", name="uq_applications_job_candidate"),

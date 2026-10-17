@@ -4,11 +4,15 @@ import type {
   AuditLog,
   CandidateDetail,
   CandidateSummary,
+  Careers,
+  CareerJobDetail,
   Dashboard,
   Evaluation,
   Fairness,
   Interview,
+  Invitation,
   InterviewListItem,
+  InviteUserResult,
   JDBiasReport,
   JobDetail,
   JobSummary,
@@ -95,13 +99,18 @@ export const api = {
   logout: () => post<void>('/auth/logout'),
   changePassword: (current_password: string, new_password: string) =>
     post<void>('/auth/change-password', { current_password, new_password }),
+  forgotPassword: (email: string) => post<void>('/auth/forgot-password', { email }),
+  resetPassword: (token: string, password: string) => post<void>('/auth/reset-password', { token, password }),
+  invitation: (token: string) => get<Invitation>(`/auth/invitations/${encodeURIComponent(token)}`),
+  acceptInvite: (token: string, password: string) =>
+    post<Me & { access_token: string }>('/auth/accept-invite', { token, password }),
 
   // Organization & team
   updateOrganization: (body: { name?: string; settings?: OrganizationSettings }) =>
     patch<Organization>('/organization', body),
   users: () => get<User[]>('/users'),
-  inviteUser: (body: { email: string; full_name: string; role: string; temporary_password: string }) =>
-    post<User>('/users', body),
+  inviteUser: (body: { email: string; full_name: string; role: string }) => post<InviteUserResult>('/users', body),
+  resendInvite: (id: string) => post<InviteUserResult>(`/users/${id}/resend-invite`),
   updateUser: (id: string, body: { role?: string; is_active?: boolean; full_name?: string }) =>
     patch<User>(`/users/${id}`, body),
 
@@ -149,6 +158,13 @@ export const api = {
   interviews: (status?: string) => get<InterviewListItem[]>(`/interviews${qs({ status })}`),
   auditLogs: (params: { action?: string; limit?: number; offset?: number } = {}) =>
     get<Page<AuditLog>>(`/audit-logs${qs(params)}`),
+
+  // Public careers page
+  careers: (slug: string) => get<Careers>(`/public/careers/${encodeURIComponent(slug)}`),
+  careerJob: (slug: string, jobId: string) =>
+    get<CareerJobDetail>(`/public/careers/${encodeURIComponent(slug)}/jobs/${jobId}`),
+  applyToJob: (slug: string, jobId: string, form: FormData) =>
+    request<{ status: 'received' }>('POST', `/public/careers/${encodeURIComponent(slug)}/jobs/${jobId}/apply`, form),
 
   // Public candidate interview
   publicInterview: (token: string) => get<PublicInterview>(`/public/interviews/${token}`),

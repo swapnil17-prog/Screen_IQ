@@ -1,4 +1,5 @@
 import uuid
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Request
 from sqlalchemy import select
@@ -87,6 +88,8 @@ async def update_application(application_id: uuid.UUID, body: ApplicationUpdate,
     if body.stage is not None and body.stage != app.stage:
         details = {"from": app.stage, "to": body.stage}
         app.stage = body.stage
+        # Starts (or cancels) the grace period before the rejection email; never re-sent once handled
+        app.rejected_at = datetime.now(UTC) if body.stage == "rejected" else None
     if body.notes is not None:
         app.notes = body.notes
     if details:
@@ -125,7 +128,7 @@ async def create_interview(application_id: uuid.UUID, auth: Writer, request: Req
 
     try:
         session, token = await open_session(app=app, candidate=candidate, job=job, org_name=auth.org.name,
-                                            org_settings=org_settings_of(auth.org))
+                                            org_settings=org_settings_of(auth.org), created_by_id=auth.user.id)
     except LLMError as e:
         raise UnprocessableError(e.message) from e
     except ValueError as e:

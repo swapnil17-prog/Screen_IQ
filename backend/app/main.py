@@ -17,6 +17,7 @@ from app.core.errors import register_exception_handlers
 from app.core.logging import configure_logging, request_id_var
 from app.services import tasks
 from app.services.embeddings import get_embedder
+from app.services.notifications import notification_sweeper
 from app.services.pipeline import recover_interrupted_work, stale_work_sweeper
 
 configure_logging(settings.log_level, settings.log_json)
@@ -34,11 +35,13 @@ async def lifespan(_: FastAPI):
         await conn.execute(text("SELECT 1"))
     await recover_interrupted_work()
     sweeper = asyncio.create_task(stale_work_sweeper(), name="stale-work-sweeper")
+    notifier = asyncio.create_task(notification_sweeper(), name="notification-sweeper")
     if settings.embedding_provider == "bge":
         # Warm the model in the background so the first upload isn't slow
         asyncio.get_running_loop().run_in_executor(None, get_embedder)
     yield
     sweeper.cancel()
+    notifier.cancel()
     await tasks.drain()
     await engine.dispose()
     logger.info("Shutdown complete")

@@ -8,7 +8,13 @@ import { ToastProvider } from '@/components/ui/toast'
 import { ButtonLink, Button } from '@/components/ui/button'
 import { EmptyState, PageLoader } from '@/components/ui/misc'
 import { RequireAuth } from '@/components/layout/AppShell'
-import { LoginPage, RegisterPage } from '@/features/auth/AuthPages'
+import {
+  AcceptInvitePage,
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+} from '@/features/auth/AuthPages'
 import { LandingPage } from '@/features/public/LandingPage'
 
 // Route-level code splitting keeps the candidate interview page and landing page light
@@ -22,6 +28,8 @@ const CandidatePage = lazy(() => import('@/features/candidates/CandidatePage').t
 const InterviewsPage = lazy(() => import('@/features/interviews/InterviewsPage').then((m) => ({ default: m.InterviewsPage })))
 const FairnessPage = lazy(() => import('@/features/fairness/FairnessPage').then((m) => ({ default: m.FairnessPage })))
 const SettingsPage = lazy(() => import('@/features/settings/SettingsPage').then((m) => ({ default: m.SettingsPage })))
+const CareersPage = lazy(() => import('@/features/careers/CareersPage').then((m) => ({ default: m.CareersPage })))
+const CareerJobPage = lazy(() => import('@/features/careers/CareersPage').then((m) => ({ default: m.CareerJobPage })))
 const CandidateInterviewPage = lazy(() =>
   import('@/features/public/CandidateInterviewPage').then((m) => ({ default: m.CandidateInterviewPage })),
 )
@@ -93,7 +101,12 @@ export default function App() {
                   <Route path="/" element={<LandingPage />} />
                   <Route path="/login" element={<LoginPage />} />
                   <Route path="/register" element={<RegisterPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  <Route path="/accept-invite" element={<AcceptInvitePage />} />
                   <Route path="/interview/:token" element={<CandidateInterviewPage />} />
+                  <Route path="/careers/:slug" element={<CareersPage />} />
+                  <Route path="/careers/:slug/jobs/:jobId" element={<CareerJobPage />} />
                   <Route path="/app" element={<RequireAuth />}>
                     <Route index element={<DashboardPage />} />
                     <Route path="jobs" element={<JobsPage />} />

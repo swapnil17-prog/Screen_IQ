@@ -18,6 +18,8 @@ class Candidate(UUIDPk, TenantScoped, Timestamps, Base):
     phone: Mapped[str | None] = mapped_column(Text)
     location: Mapped[str | None] = mapped_column(Text)
     headline: Mapped[str | None] = mapped_column(Text)
+    # "upload" (added by a recruiter) | "careers" (applied themselves; their form name/email win over the parse)
+    source: Mapped[str] = mapped_column(Text, nullable=False, default="upload", server_default="upload")
 
     filename: Mapped[str] = mapped_column(Text, nullable=False)
     content_type: Mapped[str | None] = mapped_column(Text)

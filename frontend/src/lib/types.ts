@@ -24,7 +24,22 @@ export interface User {
   role: Role
   is_active: boolean
   last_login_at: string | null
+  invited_at: string | null
+  invite_pending: boolean
   created_at: string
+}
+
+export interface InviteUserResult {
+  user: User
+  invite_link: string | null
+  invite_emailed: boolean
+  email_error: string | null
+}
+
+export interface Invitation {
+  email: string
+  full_name: string
+  organization_name: string
 }
 
 export interface ScoringWeights {
@@ -41,6 +56,10 @@ export interface OrganizationSettings {
   interview_question_count: number
   interview_max_follow_ups: number
   auto_invite_on_shortlist: boolean
+  careers_page_enabled: boolean
+  email_rejections: boolean
+  interview_reminders: boolean
+  notify_on_interview_complete: boolean
   bias_delta_threshold: number
 }
 
@@ -169,6 +188,7 @@ export interface ApplicationSummary {
   total_years: number | null
   flags: string[]
   interview_status: InterviewStatus | null
+  source: 'upload' | 'careers'
   created_at: string
   updated_at: string
 }
@@ -551,4 +571,25 @@ export interface Fairness {
 
 export interface AuditLog extends ActivityItem {
   ip_address: string | null
+}
+
+// ── Careers page (public) ─────────────────────────────────────────────────────
+export interface CareerJob {
+  id: string
+  title: string
+  department: string | null
+  location: string | null
+  employment_type: string | null
+  created_at: string
+}
+
+export interface Careers {
+  organization_name: string
+  slug: string
+  jobs: CareerJob[]
+}
+
+export interface CareerJobDetail extends CareerJob {
+  organization_name: string
+  description: string
 }
