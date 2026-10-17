@@ -1,0 +1,23 @@
+[project]
+name = "screeniq-backend"
+version = "2.0.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM", "ASYNC", "RUF"]
+ignore = ["B008", "E501", "RUF001", "RUF002", "RUF003", "RUF012", "RUF046", "SIM108", "ASYNC109"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

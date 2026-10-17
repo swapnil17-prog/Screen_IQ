@@ -1,0 +1,55 @@
+# Full stack: Postgres + pgvector, FastAPI backend, nginx-served frontend.
+#   cp .env.example .env   # then set ANTHROPIC_API_KEY and SECRET_KEY
+#   docker compose up --build
+# App: http://localhost:8080
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-screeniq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-screeniq}
+      POSTGRES_DB: ${POSTGRES_DB:-screeniq}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-screeniq} -d ${POSTGRES_DB:-screeniq}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_ML: ${INSTALL_ML:-true}
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      LLM_PROVIDER: ${LLM_PROVIDER:-anthropic}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-bge}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-screeniq}:${POSTGRES_PASSWORD:-screeniq}@db:5432/${POSTGRES_DB:-screeniq}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:8080}
+      CORS_ORIGINS: ${FRONTEND_URL:-http://localhost:8080}
+    volumes:
+      - model_cache:/app/.cache/huggingface
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  model_cache:

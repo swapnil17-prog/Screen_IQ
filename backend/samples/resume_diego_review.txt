@@ -1,0 +1,22 @@
+Diego Alvarez
+DevOps Engineer
+diego.alvarez@example.com | +34 612 555 019 | Madrid, Spain
+
+Summary
+DevOps engineer with 6 years of experience running Kubernetes platforms on AWS and automating infrastructure with Terraform.
+
+Experience
+DevOps Engineer at Cloudnest | Feb 2021 - Present
+- Operate 30+ microservices on Kubernetes (EKS) on AWS with Helm and ArgoCD
+- Wrote Terraform modules for networking, databases and observability
+- Built internal tooling and automation scripts in Python and Bash
+
+Systems Engineer at Hostia | Sep 2018 - Jan 2021
+- Managed Linux servers, Nginx and PostgreSQL backups
+- Introduced Prometheus and Grafana monitoring
+
+Skills
+Kubernetes, AWS, Terraform, Docker, Helm, ArgoCD, Python, Bash, Linux, PostgreSQL, Prometheus, Grafana
+
+Education
+B.Sc. Computer Engineering, Universidad Politecnica de Madrid, 2018

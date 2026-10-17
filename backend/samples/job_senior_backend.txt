@@ -1,0 +1,25 @@
+Senior Backend Engineer (Python)
+
+About the role
+We're building an AI-powered analytics platform used by thousands of teams. You'll design and scale the services behind it.
+
+What you'll do:
+- Design, build and operate Python microservices on AWS
+- Own our PostgreSQL data model and query performance
+- Build event-driven pipelines with Kafka
+- Mentor engineers and lead technical design reviews
+- Partner with product and data science to ship ML-backed features
+
+Requirements:
+- 5+ years of professional software engineering experience
+- Strong Python and FastAPI or Django
+- PostgreSQL, including schema design and query tuning
+- Docker and Kubernetes in production
+- AWS
+- REST APIs and microservices
+- Bachelor's degree in Computer Science or equivalent experience
+
+Nice to have:
+- Apache Kafka
+- Terraform
+- Experience with LLMs or RAG systems

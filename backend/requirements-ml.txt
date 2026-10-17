@@ -1,0 +1,4 @@
+# Local embedding model (EMBEDDING_PROVIDER=bge). Adds ~1 GB (CPU torch).
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch>=2.4
+sentence-transformers>=3.1
